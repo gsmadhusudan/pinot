@@ -15,6 +15,9 @@
  */
 package com.linkedin.pinot.server.starter.helix;
 
+import com.linkedin.pinot.core.data.manager.offline.SegmentDataManager;
+import com.linkedin.pinot.core.data.manager.offline.TableDataManager;
+import com.linkedin.pinot.core.data.manager.realtime.LLRealtimeSegmentDataManager;
 import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.apache.helix.NotificationContext;
@@ -89,26 +92,51 @@ public class SegmentOnlineOfflineStateModelFactory extends StateModelFactory<Sta
 
     @Transition(from = "OFFLINE", to = "CONSUMING")
     public void onBecomeConsumingFromOnline(Message message, NotificationContext context) {
-      LOGGER.error("Unexpected transition from OFFLINE to CONSUMING for {}", message.getResourceName());
-      throw new RuntimeException("Unexpected state transition");
+      LOGGER.info("SegmentOnlineOfflineStateModel.onBecomeConsumingFromOffline() : " + message);
+      // We do the same processing as usual for going to the consuming state, which adds the segment to the table data
+      // manager and starts Kafka consumption
+      onBecomeOnlineFromOffline(message, context);
     }
 
     @Transition(from = "CONSUMING", to = "ONLINE")
     public void onBecomeOnlineFromConsuming(Message message, NotificationContext context) {
-      LOGGER.error("Unexpected transition from CONSUMING to ONLINE for {}", message.getResourceName());
-      throw new RuntimeException("Unexpected state transition");
+      final TableDataManager tableDataManager =
+          ((InstanceDataManager) INSTANCE_DATA_MANAGER).getTableDataManager(message.getResourceName());
+      SegmentDataManager acquiredSegment = tableDataManager.acquireSegment(message.getPartitionName());
+
+      try {
+        if (acquiredSegment != null && acquiredSegment instanceof LLRealtimeSegmentDataManager) {
+          ((LLRealtimeSegmentDataManager) acquiredSegment).goOnlineFromConsuming();
+        }
+      } finally {
+        if (acquiredSegment != null) {
+          tableDataManager.releaseSegment(acquiredSegment);
+        }
+      }
     }
 
     @Transition(from = "CONSUMING", to = "OFFLINE")
     public void onBecomeOfflineFromConsuming(Message message, NotificationContext context) {
-      LOGGER.error("Unexpected transition from CONSUMING to OFFLINE for {}", message.getResourceName());
-      throw new RuntimeException("Unexpected state transition");
+      LOGGER.info("SegmentOnlineOfflineStateModel.onBecomeOfflineFromConsuming() : " + message);
+      final String segmentId = message.getPartitionName();
+      try {
+        INSTANCE_DATA_MANAGER.removeSegment(segmentId);
+      } catch (final Exception e) {
+        LOGGER.error("Cannot unload the segment : " + segmentId + "!\n" + e.getMessage(), e);
+        Utils.rethrowException(e);
+      }
     }
 
     @Transition(from = "CONSUMING", to = "DROPPED")
     public void onBecomeDroppedFromConsuming(Message message, NotificationContext context) {
-      LOGGER.error("Unexpected transition from CONSUMING to DROPPED for {}", message.getResourceName());
-      throw new RuntimeException("Unexpected state transition");
+      LOGGER.info("SegmentOnlineOfflineStateModel.onBecomeDroppedFromConsuming() : " + message);
+      try {
+        onBecomeOfflineFromConsuming(message, context);
+        onBecomeDroppedFromOffline(message, context);
+      } catch (final Exception e) {
+        LOGGER.error("Caught exception on CONSUMING -> DROPPED state transition", e);
+        Utils.rethrowException(e);
+      }
     }
 
     @Transition(from = "OFFLINE", to = "ONLINE")

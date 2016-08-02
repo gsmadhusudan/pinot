@@ -15,13 +15,6 @@
  */
 package com.linkedin.pinot.core.data.manager.realtime;
 
-import java.io.File;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import org.apache.helix.ZNRecord;
-import org.apache.helix.store.zk.ZkHelixPropertyStore;
-import org.slf4j.LoggerFactory;
 import com.linkedin.pinot.common.config.AbstractTableConfig;
 import com.linkedin.pinot.common.config.IndexingConfig;
 import com.linkedin.pinot.common.data.FieldSpec;
@@ -39,6 +32,13 @@ import com.linkedin.pinot.core.data.manager.offline.SegmentDataManager;
 import com.linkedin.pinot.core.indexsegment.IndexSegment;
 import com.linkedin.pinot.core.indexsegment.columnar.ColumnarSegmentLoader;
 import com.linkedin.pinot.core.realtime.impl.kafka.KafkaConsumerManager;
+import java.io.File;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.apache.helix.ZNRecord;
+import org.apache.helix.store.zk.ZkHelixPropertyStore;
+import org.slf4j.LoggerFactory;
 
 
 // TODO Use the refcnt object inside SegmentDataManager
@@ -187,9 +187,10 @@ public class RealtimeTableDataManager extends AbstractTableDataManager {
   }
 
   @Override
-  public void addSegment(SegmentMetadata segmentMetaToAdd) throws Exception {
-    throw new UnsupportedOperationException("Not supported addSegment(SegmentMetadata) in RealtimeTableDataManager"
-      + segmentMetaToAdd.getName() + "," + segmentMetaToAdd.getTableName());
+  public void addSegment(SegmentMetadata segmentMetaToAdd, Schema schema) throws Exception {
+    throw new UnsupportedOperationException(
+        "Not supported addSegment(SegmentMetadata, Schema) in RealtimeTableDataManager" + segmentMetaToAdd.getName()
+            + "," + segmentMetaToAdd.getTableName());
   }
 
   private void markSegmentAsLoaded(String segmentId) {

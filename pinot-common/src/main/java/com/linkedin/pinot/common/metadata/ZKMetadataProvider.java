@@ -15,6 +15,8 @@
  */
 package com.linkedin.pinot.common.metadata;
 
+import com.linkedin.pinot.common.metadata.segment.LLCRealtimeSegmentZKMetadata;
+import com.linkedin.pinot.common.utils.SegmentName;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -120,7 +122,13 @@ public class ZKMetadataProvider {
 
   public static RealtimeSegmentZKMetadata getRealtimeSegmentZKMetadata(ZkHelixPropertyStore<ZNRecord> propertyStore, String tableName, String segmentName) {
     String realtimeTableName = TableNameBuilder.REALTIME_TABLE_NAME_BUILDER.forTable(tableName);
-    return new RealtimeSegmentZKMetadata(propertyStore.get(constructPropertyStorePathForSegment(realtimeTableName, segmentName), null, AccessOption.PERSISTENT));
+    ZNRecord znRecord = propertyStore
+        .get(constructPropertyStorePathForSegment(realtimeTableName, segmentName), null, AccessOption.PERSISTENT);
+    if (SegmentName.isHighLevelConsumerSegmentName(segmentName)) {
+      return new RealtimeSegmentZKMetadata(znRecord);
+    } else {
+      return new LLCRealtimeSegmentZKMetadata(znRecord);
+    }
   }
 
   public static @Nullable AbstractTableConfig getOfflineTableConfig(ZkHelixPropertyStore<ZNRecord> propertyStore, String tableName) {

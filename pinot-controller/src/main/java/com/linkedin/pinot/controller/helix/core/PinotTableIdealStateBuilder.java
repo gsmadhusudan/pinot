@@ -204,7 +204,8 @@ public class PinotTableIdealStateBuilder {
 
   private static int getPartitionsCount(KafkaStreamMetadata kafkaMetadata) {
     // TODO Get the number of partitions from Kafka
-    return 8;
+    // TODO jfim Fetch this from kafka
+    return 10;
   }
 
   public static IdealState buildEmptyKafkaConsumerRealtimeIdealStateFor(String realtimeTableName) {

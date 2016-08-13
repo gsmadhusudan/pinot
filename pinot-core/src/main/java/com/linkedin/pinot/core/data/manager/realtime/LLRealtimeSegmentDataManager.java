@@ -168,6 +168,7 @@ public class LLRealtimeSegmentDataManager extends SegmentDataManager {
   @Override
   public void destroy() {
     // TODO
+    throw new RuntimeException("Unimplemented!");
   }
 
   public void goOnlineFromConsuming() {

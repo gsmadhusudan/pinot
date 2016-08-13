@@ -20,6 +20,7 @@ import com.linkedin.pinot.core.realtime.impl.kafka.SimpleConsumerWrapper;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.compress.utils.IOUtils;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.ZNRecord;
 import org.apache.helix.model.IdealState;
@@ -212,7 +213,7 @@ public class PinotTableIdealStateBuilder {
     try {
       return consumerWrapper.getPartitionCount(kafkaMetadata.getKafkaTopicName());
     } finally {
-      consumerWrapper.close();
+      IOUtils.closeQuietly(consumerWrapper);
     }
   }
 

@@ -172,5 +172,6 @@ public class LLRealtimeSegmentDataManager extends SegmentDataManager {
 
   public void goOnlineFromConsuming() {
     // TODO Implement CONSUMING -> ONLINE state transition
+    LOGGER.error("CONSUMING -> ONLINE state transition not implemented");
   }
 }

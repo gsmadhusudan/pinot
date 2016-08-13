@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
  */
 public class LLRealtimeSegmentDataManager extends SegmentDataManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(LLRealtimeSegmentDataManager.class);
+  private static final int KAFKA_MAX_FETCH_TIME_MILLIS = 1000;
 
   private final LLCRealtimeSegmentZKMetadata _segmentZKMetadata;
   private final AbstractTableConfig _tableConfig;
@@ -115,8 +116,9 @@ public class LLRealtimeSegmentDataManager extends SegmentDataManager {
 
           while (notFull) {
             // Get a batch of messages from Kafka
+            final long endOffset = Long.MAX_VALUE; // No upper limit on Kafka offset
             Iterable<MessageAndOffset> messagesAndOffsets =
-                consumerWrapper.fetchMessages(currentOffset, Long.MAX_VALUE, 1000);
+                consumerWrapper.fetchMessages(currentOffset, endOffset, KAFKA_MAX_FETCH_TIME_MILLIS);
 
             // Index each message
             int batchSize = 0;

@@ -15,9 +15,6 @@
  */
 package com.linkedin.pinot.server.starter.helix;
 
-import com.linkedin.pinot.core.data.manager.offline.SegmentDataManager;
-import com.linkedin.pinot.core.data.manager.offline.TableDataManager;
-import com.linkedin.pinot.core.data.manager.realtime.LLRealtimeSegmentDataManager;
 import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.apache.helix.NotificationContext;
@@ -30,6 +27,7 @@ import org.apache.helix.participant.statemachine.Transition;
 import org.apache.helix.store.zk.ZkHelixPropertyStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.google.common.base.Preconditions;
 import com.linkedin.pinot.common.Utils;
 import com.linkedin.pinot.common.config.AbstractTableConfig;
 import com.linkedin.pinot.common.config.TableNameBuilder;
@@ -38,7 +36,11 @@ import com.linkedin.pinot.common.metadata.ZKMetadataProvider;
 import com.linkedin.pinot.common.metadata.instance.InstanceZKMetadata;
 import com.linkedin.pinot.common.metadata.segment.SegmentZKMetadata;
 import com.linkedin.pinot.common.utils.CommonConstants.Helix.TableType;
+import com.linkedin.pinot.common.utils.SegmentName;
 import com.linkedin.pinot.core.data.manager.offline.InstanceDataManager;
+import com.linkedin.pinot.core.data.manager.offline.SegmentDataManager;
+import com.linkedin.pinot.core.data.manager.offline.TableDataManager;
+import com.linkedin.pinot.core.data.manager.realtime.LLRealtimeSegmentDataManager;
 
 /**
  * Data Server layer state model to take over how to operate on:
@@ -92,6 +94,8 @@ public class SegmentOnlineOfflineStateModelFactory extends StateModelFactory<Sta
 
     @Transition(from = "OFFLINE", to = "CONSUMING")
     public void onBecomeConsumingFromOnline(Message message, NotificationContext context) {
+      Preconditions.checkState(SegmentName.isLowLevelConsumerSegmentName(message.getPartitionName()),
+          "Tried to go into CONSUMING state on non-low level segment");
       LOGGER.info("SegmentOnlineOfflineStateModel.onBecomeConsumingFromOffline() : " + message);
       // We do the same processing as usual for going to the consuming state, which adds the segment to the table data
       // manager and starts Kafka consumption

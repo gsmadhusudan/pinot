@@ -15,8 +15,6 @@
  */
 package com.linkedin.pinot.common.metadata;
 
-import com.linkedin.pinot.common.metadata.segment.LLCRealtimeSegmentZKMetadata;
-import com.linkedin.pinot.common.utils.SegmentName;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,8 +26,10 @@ import org.apache.helix.store.zk.ZkHelixPropertyStore;
 import com.linkedin.pinot.common.config.AbstractTableConfig;
 import com.linkedin.pinot.common.config.TableNameBuilder;
 import com.linkedin.pinot.common.metadata.instance.InstanceZKMetadata;
+import com.linkedin.pinot.common.metadata.segment.LLCRealtimeSegmentZKMetadata;
 import com.linkedin.pinot.common.metadata.segment.OfflineSegmentZKMetadata;
 import com.linkedin.pinot.common.metadata.segment.RealtimeSegmentZKMetadata;
+import com.linkedin.pinot.common.utils.SegmentName;
 import com.linkedin.pinot.common.utils.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

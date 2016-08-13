@@ -16,7 +16,6 @@
 
 package com.linkedin.pinot.core.data.manager.realtime;
 
-import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.linkedin.pinot.common.config.AbstractTableConfig;
 import com.linkedin.pinot.common.data.Schema;
@@ -27,19 +26,17 @@ import com.linkedin.pinot.common.metrics.ServerMetrics;
 import com.linkedin.pinot.common.segment.ReadMode;
 import com.linkedin.pinot.common.utils.CommonConstants;
 import com.linkedin.pinot.common.utils.LLCSegmentName;
-import com.linkedin.pinot.common.utils.SegmentName;
-import com.linkedin.pinot.core.common.DataSource;
+import com.linkedin.pinot.common.utils.NetUtil;
 import com.linkedin.pinot.core.data.GenericRow;
 import com.linkedin.pinot.core.data.extractors.FieldExtractorFactory;
 import com.linkedin.pinot.core.data.extractors.PlainFieldExtractor;
 import com.linkedin.pinot.core.data.manager.offline.SegmentDataManager;
 import com.linkedin.pinot.core.indexsegment.IndexSegment;
-import com.linkedin.pinot.core.operator.query.MAggregationOperator;
 import com.linkedin.pinot.core.realtime.impl.RealtimeSegmentImpl;
 import com.linkedin.pinot.core.realtime.impl.kafka.KafkaMessageDecoder;
+import com.linkedin.pinot.core.realtime.impl.kafka.KafkaSimpleConsumerFactoryImpl;
 import com.linkedin.pinot.core.realtime.impl.kafka.SimpleConsumerWrapper;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import kafka.message.MessageAndOffset;
 import org.slf4j.Logger;
@@ -47,7 +44,7 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * TODO Document me!
+ * Segment data manager for low level consumer realtime segments, which manages consumption and segment completion.
  */
 public class LLRealtimeSegmentDataManager extends SegmentDataManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(LLRealtimeSegmentDataManager.class);
@@ -86,10 +83,11 @@ public class LLRealtimeSegmentDataManager extends SegmentDataManager {
     final int kafkaPartitionId = segmentName.getPartitionId();
     final String decoderClassName = _tableConfig.getIndexingConfig().getStreamConfigs()
         .get(CommonConstants.Helix.DataSource.STREAM_PREFIX + "." + CommonConstants.Helix.DataSource.Realtime.Kafka.DECODER_CLASS);
+    final int segmentMaxRowCount = Integer.parseInt(_tableConfig.getIndexingConfig().getStreamConfigs().get(
+        CommonConstants.Helix.DataSource.Realtime.REALTIME_SEGMENT_FLUSH_SIZE));
 
     // Start new realtime segment
-    // HACK jfim hardcoded value for segment size
-    _realtimeSegment = new RealtimeSegmentImpl(schema, 200000, tableConfig.getTableName(),
+    _realtimeSegment = new RealtimeSegmentImpl(schema, segmentMaxRowCount, tableConfig.getTableName(),
         segmentZKMetadata.getSegmentName(), kafkaTopic, serverMetrics);
     _realtimeSegment.setSegmentMetadata(segmentZKMetadata, schema);
 
@@ -106,10 +104,12 @@ public class LLRealtimeSegmentDataManager extends SegmentDataManager {
       public void run() {
         try {
           // Create Kafka consumer
+          String clientId = kafkaPartitionId + "-" + NetUtil.getHostnameOrAddress();
           SimpleConsumerWrapper consumerWrapper =
-              SimpleConsumerWrapper.forPartitionConsumption(bootstrapNodes, kafkaTopic, kafkaPartitionId);
+              SimpleConsumerWrapper.forPartitionConsumption(new KafkaSimpleConsumerFactoryImpl(), bootstrapNodes,
+                  clientId, kafkaTopic, kafkaPartitionId);
 
-          // TODO Check for limit conditions (eg. full, stop consuming)
+          // TODO Check for limit conditions (eg. stop consuming due to CONSUMING -> ONLINE state transition)
           boolean notFull = true;
           long currentOffset = _segmentZKMetadata.getStartOffset();
 
@@ -130,18 +130,21 @@ public class LLRealtimeSegmentDataManager extends SegmentDataManager {
                 row = fieldExtractor.transform(row);
                 notFull = _realtimeSegment.index(row);
                 batchSize++;
-              } else {
-                System.out.println("Dropped null row?");
               }
               currentOffset = messageAndOffset.nextOffset();
             }
 
             if (batchSize != 0) {
-              System.out.println("Indexed " + batchSize + " messages from partition " + kafkaPartitionId + " offset " + currentOffset);
+              LOGGER.debug("Indexed {} messages from partition {}, current offset {}", batchSize, kafkaPartitionId,
+                  currentOffset);
             } else {
+              // If there were no messages to be fetched from Kafka, wait for a little bit as to avoid hammering the
+              // Kafka broker
               Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
             }
           }
+
+          // TODO Run the segment completion protocol here, flush the segment and such
         } catch (Exception e) {
           LOGGER.error("Caught exception while indexing events", e);
         }
@@ -166,8 +169,6 @@ public class LLRealtimeSegmentDataManager extends SegmentDataManager {
   }
 
   public void goOnlineFromConsuming() {
-    // Download segment
-    // Load segment
-    // Atomically swap the segment
+    // TODO Implement CONSUMING -> ONLINE state transition
   }
 }
